@@ -26,7 +26,7 @@ function LandingPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/rooms', {
+      const response = await fetch('https://planning-poker-server-e6rv.onrender.com/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
