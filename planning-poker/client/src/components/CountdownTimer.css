@@ -1,0 +1,82 @@
+.countdown-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  border: 2px solid var(--color-secondary);
+  box-shadow: 0 0 30px var(--color-secondary-glow);
+  position: relative;
+  overflow: hidden;
+}
+
+.countdown-timer.urgent {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 40px var(--color-primary-glow);
+  animation: shake 0.3s ease-in-out infinite;
+}
+
+.countdown-timer.complete {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 30px var(--color-accent-glow);
+}
+
+.timer-ring {
+  width: 80px;
+  height: 80px;
+  position: relative;
+}
+
+.timer-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.timer-ring-bg {
+  fill: none;
+  stroke: var(--color-bg);
+  stroke-width: 6;
+}
+
+.timer-ring-progress {
+  fill: none;
+  stroke: var(--color-secondary);
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke 0.3s;
+}
+
+.countdown-timer.urgent .timer-ring-progress {
+  stroke: var(--color-primary);
+}
+
+.timer-value {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono);
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.countdown-timer.urgent .timer-value {
+  color: var(--color-primary);
+}
+
+.timer-label {
+  font-size: 0.85rem;
+  color: var(--color-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}

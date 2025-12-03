@@ -1,0 +1,31 @@
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  padding: 14px 24px;
+  border-radius: var(--radius-lg);
+  font-weight: 500;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toast-success {
+  border: 2px solid var(--color-success);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(107, 255, 107, 0.2);
+}
+
+.toast-error {
+  border: 2px solid var(--color-error);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(255, 107, 107, 0.2);
+}
+
+.toast-info {
+  border: 2px solid var(--color-secondary);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(78, 205, 196, 0.2);
+}

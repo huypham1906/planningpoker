@@ -1,0 +1,123 @@
+.participants-panel {
+  padding: 20px;
+}
+
+.panel-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-dim);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-title .count {
+  font-size: 0.8rem;
+  background: var(--color-bg-card);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.participants-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.participant {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  transition: background 0.2s;
+}
+
+.participant:hover {
+  background: var(--color-bg-card);
+}
+
+.participant.is-me {
+  background: rgba(78, 205, 196, 0.1);
+}
+
+.participant.disconnected {
+  opacity: 0.5;
+}
+
+.participant-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.participant-avatar .avatar-emoji {
+  font-size: 1.3rem;
+}
+
+.participant-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.participant-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.you-badge {
+  font-size: 0.7rem;
+  color: var(--color-secondary);
+  background: rgba(78, 205, 196, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.host-badge {
+  font-size: 0.7rem;
+  color: var(--color-accent);
+  background: rgba(255, 230, 109, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.status-offline {
+  font-size: 0.75rem;
+  color: var(--color-text-dim);
+}
+
+.participant-status {
+  flex-shrink: 0;
+}
+
+.voted-badge,
+.waiting-badge,
+.no-vote-badge {
+  font-size: 1.1rem;
+}
+
+.revealed-vote {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: white;
+}

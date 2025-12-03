@@ -1,0 +1,137 @@
+.vote-results {
+  padding: 24px;
+}
+
+.results-title {
+  text-align: center;
+  font-size: 1.3rem;
+  margin-bottom: 20px;
+}
+
+.results-summary {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.summary-stat {
+  text-align: center;
+  padding: 12px 20px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+}
+
+.summary-stat.primary {
+  background: linear-gradient(135deg, var(--color-bg-card), rgba(78, 205, 196, 0.1));
+  border: 1px solid var(--color-secondary);
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-dim);
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.summary-stat.primary .stat-value {
+  font-size: 1.8rem;
+}
+
+/* Vote Distribution */
+.vote-distribution {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.distribution-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.distribution-bar.outlier {
+  opacity: 0.6;
+}
+
+.bar-label {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-weight: 600;
+  width: 30px;
+  text-align: right;
+}
+
+.bar-track {
+  flex: 1;
+  height: 24px;
+  background: var(--color-bg-card);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  min-width: 20px;
+}
+
+.bar-count {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-text-dim);
+  width: 24px;
+}
+
+/* Final Estimate Selection */
+.final-estimate-section {
+  border-top: 1px solid var(--color-bg-card);
+  padding-top: 20px;
+}
+
+.section-label {
+  text-align: center;
+  color: var(--color-text-dim);
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+
+.estimate-options {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.estimate-option {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--btn-color);
+  background: var(--color-bg-card);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.estimate-option:hover {
+  border-color: var(--btn-color);
+  box-shadow: 0 4px 15px var(--btn-glow);
+}

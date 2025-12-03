@@ -1,0 +1,232 @@
+.room-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.room-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-dim);
+}
+
+.loading-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+/* Header */
+.room-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--color-bg-secondary);
+  border-bottom: 1px solid var(--color-bg-card);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.room-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.room-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.room-code-badge {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-accent);
+  background: var(--color-bg-card);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.05em;
+}
+
+.room-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Main Layout */
+.room-main {
+  flex: 1;
+  display: flex;
+  padding: 24px;
+  gap: 24px;
+}
+
+.room-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.room-sidebar {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Current Story Section */
+.current-story-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.current-story {
+  background: var(--color-bg-secondary);
+}
+
+.story-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.story-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-secondary);
+  background: rgba(78, 205, 196, 0.15);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.estimate-badge {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-success);
+  background: rgba(107, 255, 107, 0.15);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.story-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.story-description {
+  color: var(--color-text-dim);
+  line-height: 1.6;
+  margin-bottom: 8px;
+}
+
+.story-link {
+  color: var(--color-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.story-link:hover {
+  text-decoration: underline;
+}
+
+.no-story {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--color-text-dim);
+}
+
+.no-story-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+/* Host Controls */
+.host-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Deck Section */
+.deck-section {
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 100;
+}
+
+.modal {
+  width: 100%;
+  max-width: 480px;
+}
+
+.modal h2 {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.modal form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .room-main {
+    flex-direction: column;
+  }
+  
+  .room-sidebar {
+    width: 100%;
+    order: -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .room-header {
+    padding: 12px 16px;
+  }
+  
+  .room-main {
+    padding: 16px;
+  }
+  
+  .room-title {
+    font-size: 1.1rem;
+  }
+}
