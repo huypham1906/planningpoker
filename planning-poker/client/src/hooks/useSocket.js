@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '' : 'http://localhost:3001');
+const SOCKET_URL = 'https://planning-poker-server-e6rv.onrender.com';
 
 export function useSocket() {
   const socketRef = useRef(null);
@@ -144,7 +144,6 @@ export function useSocket() {
           }
         };
       });
-      // Reset voting state for new story
       setVotingStatus({});
       setRevealedVotes(null);
       setIsRoundLocked(false);
