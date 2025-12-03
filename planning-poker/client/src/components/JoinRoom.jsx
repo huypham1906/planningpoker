@@ -19,7 +19,7 @@ function JoinRoom() {
     // Check if room exists
     const checkRoom = async () => {
       try {
-        const response = await fetch(`/api/rooms/${roomId}`);
+        const response = await fetch(`https://planning-poker-server-e6rv.onrender.com/api/rooms/${roomId}`);
         const data = await response.json();
         
         if (!response.ok || !data.exists) {
