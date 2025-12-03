@@ -5,6 +5,8 @@ import AvatarSelector from './AvatarSelector';
 import { getRandomAvatar } from '../utils/avatars';
 import './JoinRoom.css';
 
+const API_URL = 'https://planning-poker-server-e6rv.onrender.com';
+
 function JoinRoom() {
   const { roomId } = useParams();
   const navigate = useNavigate();
@@ -16,10 +18,9 @@ function JoinRoom() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Check if room exists
     const checkRoom = async () => {
       try {
-        const response = await fetch(`https://planning-poker-server-e6rv.onrender.com/api/rooms/${roomId}`);
+        const response = await fetch(`${API_URL}/api/rooms/${roomId}`);
         const data = await response.json();
         
         if (!response.ok || !data.exists) {
@@ -46,7 +47,6 @@ function JoinRoom() {
 
     setIsJoining(true);
     
-    // Store user info and navigate to room
     sessionStorage.setItem('userName', displayName.trim());
     sessionStorage.setItem('userAvatar', selectedAvatar);
     navigate(`/room/${roomId}`);
