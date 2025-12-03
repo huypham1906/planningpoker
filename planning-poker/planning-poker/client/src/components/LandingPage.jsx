@@ -5,9 +5,11 @@ import AvatarSelector from './AvatarSelector';
 import { getRandomAvatar } from '../utils/avatars';
 import './LandingPage.css';
 
+const API_URL = 'https://planning-poker-server-e6rv.onrender.com';
+
 function LandingPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState(null); // 'create' | 'join'
+  const [mode, setMode] = useState(null);
   const [hostName, setHostName] = useState('');
   const [roomName, setRoomName] = useState('');
   const [roomCode, setRoomCode] = useState('');
@@ -26,7 +28,7 @@ function LandingPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/rooms', {
+      const response = await fetch(`${API_URL}/api/rooms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -42,7 +44,6 @@ function LandingPage() {
         throw new Error(data.error || 'Failed to create room');
       }
 
-      // Store host info and navigate to room
       sessionStorage.setItem('hostId', data.host.id);
       sessionStorage.setItem('userId', data.host.id);
       sessionStorage.setItem('userName', hostName.trim());
