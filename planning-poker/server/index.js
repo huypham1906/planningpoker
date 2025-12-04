@@ -7,15 +7,29 @@ import { store } from './store.js';
 const app = express();
 const server = createServer(app);
 
+// CORS configuration - allow Netlify domain
+const ALLOWED_ORIGINS = [
+  'https://planningpoker101.netlify.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
+app.use(cors({
+  origin: ALLOWED_ORIGINS,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true
+}));
+
+app.use(express.json());
+
 const io = new Server(server, {
   cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
+    origin: ALLOWED_ORIGINS,
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
 });
-
-app.use(cors());
-app.use(express.json());
 
 // REST API Routes
 app.get('/api/health', (req, res) => {
@@ -23,27 +37,40 @@ app.get('/api/health', (req, res) => {
 });
 
 app.post('/api/rooms', (req, res) => {
-  const { hostName, roomName, avatarId } = req.body;
-  
-  if (!hostName) {
-    return res.status(400).json({ error: 'Host name is required' });
-  }
+  try {
+    const { hostName, roomName, avatarId } = req.body;
+    
+    if (!hostName) {
+      return res.status(400).json({ error: 'Host name is required' });
+    }
 
-  const { room, host } = store.createRoom(hostName, roomName, avatarId);
-  res.json({ room, host });
+    const { room, host } = store.createRoom(hostName, roomName, avatarId);
+    console.log(`Room created: ${room.id} by ${hostName}`);
+    res.json({ room, host });
+  } catch (error) {
+    console.error('Error creating room:', error);
+    res.status(500).json({ error: 'Failed to create room' });
+  }
 });
 
 app.get('/api/rooms/:roomId', (req, res) => {
-  const roomData = store.getRoom(req.params.roomId);
-  
-  if (!roomData) {
-    return res.status(404).json({ error: 'Room not found' });
-  }
+  try {
+    const roomData = store.getRoom(req.params.roomId);
+    
+    if (!roomData) {
+      console.log(`Room not found: ${req.params.roomId}`);
+      return res.status(404).json({ error: 'Room not found', exists: false });
+    }
 
-  res.json({ 
-    room: roomData.room,
-    exists: true 
-  });
+    console.log(`Room found: ${req.params.roomId}`);
+    res.json({ 
+      room: roomData.room,
+      exists: true 
+    });
+  } catch (error) {
+    console.error('Error getting room:', error);
+    res.status(500).json({ error: 'Failed to get room', exists: false });
+  }
 });
 
 // Socket.IO handlers
@@ -52,12 +79,14 @@ io.on('connection', (socket) => {
 
   // Join room
   socket.on('join_room', ({ roomId, displayName, avatarId, userId }) => {
+    console.log(`User ${displayName} attempting to join room ${roomId}`);
+    
     // Check if reconnecting
     if (userId) {
-      const result = store.reconnectUser(roomId, oderId);
+      const result = store.reconnectUser(roomId, userId);
       if (result) {
         socket.join(roomId);
-        store.mapSocketToUser(socket.id, roomId, oderId);
+        store.mapSocketToUser(socket.id, roomId, userId);
         
         const roomState = store.getRoomState(roomId);
         socket.emit('room_state', roomState);
@@ -69,6 +98,7 @@ io.on('connection', (socket) => {
     // New user joining
     const result = store.joinRoom(roomId, displayName, avatarId);
     if (!result) {
+      console.log(`Room not found for join: ${roomId}`);
       socket.emit('error', { message: 'Room not found' });
       return;
     }
@@ -79,15 +109,21 @@ io.on('connection', (socket) => {
     const roomState = store.getRoomState(roomId);
     socket.emit('room_state', { ...roomState, userId: result.user.id });
     socket.to(roomId).emit('user_joined', { user: result.user });
+    console.log(`User ${displayName} joined room ${roomId}`);
   });
 
   // Host joins their created room
   socket.on('host_join_room', ({ roomId, hostId }) => {
+    console.log(`Host ${hostId} joining room ${roomId}`);
     socket.join(roomId);
     store.mapSocketToUser(socket.id, roomId, hostId);
     
     const roomState = store.getRoomState(roomId);
-    socket.emit('room_state', { ...roomState, userId: hostId });
+    if (roomState) {
+      socket.emit('room_state', { ...roomState, userId: hostId });
+    } else {
+      socket.emit('error', { message: 'Room not found' });
+    }
   });
 
   // Change avatar
