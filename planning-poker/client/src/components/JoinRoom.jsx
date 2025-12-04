@@ -5,6 +5,7 @@ import AvatarSelector from './AvatarSelector';
 import { getRandomAvatar } from '../utils/avatars';
 import './JoinRoom.css';
 
+// API URL - hardcoded for production
 const API_URL = 'https://planning-poker-server-e6rv.onrender.com';
 
 function JoinRoom() {
@@ -18,6 +19,7 @@ function JoinRoom() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // Check if room exists
     const checkRoom = async () => {
       try {
         const response = await fetch(`${API_URL}/api/rooms/${roomId}`);
@@ -29,6 +31,7 @@ function JoinRoom() {
           setRoomInfo(data.room);
         }
       } catch (err) {
+        console.error('Error checking room:', err);
         setError('Unable to connect. Please try again.');
       } finally {
         setIsLoading(false);
@@ -47,6 +50,7 @@ function JoinRoom() {
 
     setIsJoining(true);
     
+    // Store user info and navigate to room
     sessionStorage.setItem('userName', displayName.trim());
     sessionStorage.setItem('userAvatar', selectedAvatar);
     navigate(`/room/${roomId}`);
