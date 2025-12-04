@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
+// Socket URL - hardcoded for production
 const SOCKET_URL = 'https://planning-poker-server-e6rv.onrender.com';
 
 export function useSocket() {
@@ -16,6 +17,8 @@ export function useSocket() {
   const [myVote, setMyVote] = useState(null);
 
   useEffect(() => {
+    console.log('🔌 Connecting to socket:', SOCKET_URL);
+    
     const socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling']
     });
@@ -23,23 +26,32 @@ export function useSocket() {
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      console.log('✅ Socket connected:', socket.id);
       setIsConnected(true);
       setError(null);
     });
 
     socket.on('disconnect', () => {
+      console.log('❌ Socket disconnected');
       setIsConnected(false);
     });
 
     socket.on('error', (err) => {
+      console.error('Socket error:', err);
       setError(err.message);
     });
 
     socket.on('room_state', (state) => {
+      console.log('📥 room_state received:', state);
       setRoomState(state);
-      if (state.userId) {
-        setUserId(state.userId);
+      
+      // Handle both userId and oderId (server sends oderId)
+      const id = state.userId || state.oderId;
+      if (id) {
+        console.log('👤 Setting userId:', id);
+        setUserId(id);
       }
+      
       if (state.votingStatus) {
         setVotingStatus(state.votingStatus);
       }
@@ -54,6 +66,7 @@ export function useSocket() {
     });
 
     socket.on('user_joined', ({ user }) => {
+      console.log('👤 User joined:', user);
       setRoomState(prev => {
         if (!prev) return prev;
         return {
@@ -73,25 +86,27 @@ export function useSocket() {
       });
     });
 
-    socket.on('user_disconnected', ({ userId }) => {
+    socket.on('user_disconnected', ({ userId, oderId }) => {
+      const id = userId || oderId;
       setRoomState(prev => {
         if (!prev) return prev;
         return {
           ...prev,
           users: prev.users.map(u => 
-            u.id === userId ? { ...u, connected: false } : u
+            u.id === id ? { ...u, connected: false } : u
           )
         };
       });
     });
 
-    socket.on('user_reconnected', ({ userId }) => {
+    socket.on('user_reconnected', ({ userId, oderId }) => {
+      const id = userId || oderId;
       setRoomState(prev => {
         if (!prev) return prev;
         return {
           ...prev,
           users: prev.users.map(u => 
-            u.id === userId ? { ...u, connected: true } : u
+            u.id === id ? { ...u, connected: true } : u
           )
         };
       });
@@ -118,6 +133,7 @@ export function useSocket() {
     });
 
     socket.on('story_added', ({ story }) => {
+      console.log('📖 Story added:', story);
       setRoomState(prev => {
         if (!prev) return prev;
         return {
@@ -144,6 +160,7 @@ export function useSocket() {
           }
         };
       });
+      // Reset voting state for new story
       setVotingStatus({});
       setRevealedVotes(null);
       setIsRoundLocked(false);
@@ -222,10 +239,12 @@ export function useSocket() {
   }, []);
 
   const joinRoom = useCallback((roomId, displayName, avatarId) => {
+    console.log('📤 Emitting join_room:', { roomId, displayName, avatarId });
     socketRef.current?.emit('join_room', { roomId, displayName, avatarId });
   }, []);
 
   const hostJoinRoom = useCallback((roomId, hostId) => {
+    console.log('📤 Emitting host_join_room:', { roomId, hostId });
     socketRef.current?.emit('host_join_room', { roomId, hostId });
   }, []);
 
@@ -238,6 +257,7 @@ export function useSocket() {
   }, []);
 
   const addStory = useCallback((roomId, story) => {
+    console.log('📤 Emitting add_story:', { roomId, story });
     socketRef.current?.emit('add_story', { roomId, story });
   }, []);
 
