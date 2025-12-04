@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 class Store {
   constructor() {
     this.rooms = new Map();
-    this.userSockets = new Map(); // socketId -> { roomId, oderId }
+    this.userSockets = new Map(); // socketId -> { roomId, userId }
   }
 
   // Room operations
@@ -34,7 +34,7 @@ class Store {
       id: hostId,
       roomId,
       displayName: hostName,
-      avatarId: hostAvatarId || 'pikachu',
+      avatarId: hostAvatarId || 'sparky',
       role: 'host',
       connected: true
     };
@@ -61,7 +61,7 @@ class Store {
       id: userId,
       roomId,
       displayName,
-      avatarId: avatarId || 'charmander',
+      avatarId: avatarId || 'blazey',
       role: 'participant',
       connected: true
     };
@@ -212,7 +212,7 @@ class Store {
     return true;
   }
 
-  castVote(roomId, storyId, oderId, value) {
+  castVote(roomId, storyId, userId, value) {
     const roomData = this.rooms.get(roomId);
     if (!roomData) return null;
 
@@ -227,12 +227,12 @@ class Store {
       roomData.votes.set(storyId, storyVotes);
     }
 
-    storyVotes.set(oderId, {
+    storyVotes.set(userId, {
       value,
       timestamp: new Date().toISOString()
     });
 
-    return { oderId, voted: true };
+    return { userId, voted: true };
   }
 
   getVotes(roomId, storyId) {
