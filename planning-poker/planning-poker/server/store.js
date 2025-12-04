@@ -1,15 +1,37 @@
-// In-memory data store for Planning Poker
+// MongoDB-based data store for Planning Poker
+import { MongoClient } from 'mongodb';
 import { v4 as uuidv4 } from 'uuid';
+
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://pokeruser:Poker123456@planningpoker.peuhwqu.mongodb.net/?appName=PlanningPoker';
+const DB_NAME = 'planningpoker';
 
 class Store {
   constructor() {
-    this.rooms = new Map();
-    this.userSockets = new Map(); // socketId -> { roomId, oderId }
+    this.client = null;
+    this.db = null;
+    this.userSockets = new Map(); // socketId -> { roomId, userId } - kept in memory for socket mapping
+  }
+
+  async connect() {
+    try {
+      this.client = new MongoClient(MONGODB_URI);
+      await this.client.connect();
+      this.db = this.client.db(DB_NAME);
+      
+      // Create indexes for better performance
+      await this.db.collection('rooms').createIndex({ id: 1 }, { unique: true });
+      await this.db.collection('rooms').createIndex({ updatedAt: 1 });
+      
+      console.log('Connected to MongoDB successfully');
+    } catch (error) {
+      console.error('MongoDB connection error:', error);
+      throw error;
+    }
   }
 
   // Room operations
-  createRoom(hostName, roomName, hostAvatarId) {
-    const roomId = uuidv4().slice(0, 8);
+  async createRoom(hostName, roomName, hostAvatarId) {
+    const roomId = uuidv4().slice(0, 8).toUpperCase();
     const hostId = uuidv4();
     
     const room = {
@@ -34,99 +56,155 @@ class Store {
       id: hostId,
       roomId,
       displayName: hostName,
-      avatarId: hostAvatarId || 'pikachu',
+      avatarId: hostAvatarId || 'sparky',
       role: 'host',
       connected: true
     };
 
-    this.rooms.set(roomId, {
-      room,
-      users: new Map([[hostId, host]]),
-      votes: new Map() // storyId -> Map(userId -> vote)
-    });
+    const roomDoc = {
+      ...room,
+      users: [host],
+      votes: {} // storyId -> { userId: vote }
+    };
+
+    await this.db.collection('rooms').insertOne(roomDoc);
+    console.log(`Room created: ${roomId}`);
 
     return { room, host };
   }
 
-  getRoom(roomId) {
-    return this.rooms.get(roomId);
+  async getRoom(roomId) {
+    const roomDoc = await this.db.collection('rooms').findOne({ id: roomId.toUpperCase() });
+    if (!roomDoc) return null;
+    
+    return {
+      room: {
+        id: roomDoc.id,
+        name: roomDoc.name,
+        hostId: roomDoc.hostId,
+        settings: roomDoc.settings,
+        stories: roomDoc.stories,
+        currentStoryId: roomDoc.currentStoryId,
+        currentRound: roomDoc.currentRound,
+        status: roomDoc.status,
+        createdAt: roomDoc.createdAt,
+        updatedAt: roomDoc.updatedAt
+      },
+      users: roomDoc.users || [],
+      votes: roomDoc.votes || {}
+    };
   }
 
-  joinRoom(roomId, displayName, avatarId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return null;
-
+  async joinRoom(roomId, displayName, avatarId) {
     const userId = uuidv4();
     const user = {
       id: userId,
-      roomId,
+      roomId: roomId.toUpperCase(),
       displayName,
-      avatarId: avatarId || 'charmander',
+      avatarId: avatarId || 'blazey',
       role: 'participant',
       connected: true
     };
 
-    roomData.users.set(userId, user);
-    return { room: roomData.room, user, users: Array.from(roomData.users.values()) };
+    const result = await this.db.collection('rooms').findOneAndUpdate(
+      { id: roomId.toUpperCase() },
+      { 
+        $push: { users: user },
+        $set: { updatedAt: new Date().toISOString() }
+      },
+      { returnDocument: 'after' }
+    );
+
+    if (!result) return null;
+
+    return { 
+      room: result, 
+      user, 
+      users: result.users 
+    };
   }
 
-  reconnectUser(roomId, userId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return null;
+  async reconnectUser(roomId, userId) {
+    const result = await this.db.collection('rooms').findOneAndUpdate(
+      { id: roomId.toUpperCase(), 'users.id': userId },
+      { 
+        $set: { 
+          'users.$.connected': true,
+          updatedAt: new Date().toISOString()
+        }
+      },
+      { returnDocument: 'after' }
+    );
 
-    const user = roomData.users.get(userId);
-    if (user) {
-      user.connected = true;
-      return { room: roomData.room, user, users: Array.from(roomData.users.values()) };
+    if (!result) return null;
+
+    const user = result.users.find(u => u.id === userId);
+    return { room: result, user, users: result.users };
+  }
+
+  async disconnectUser(roomId, userId) {
+    await this.db.collection('rooms').updateOne(
+      { id: roomId.toUpperCase(), 'users.id': userId },
+      { 
+        $set: { 
+          'users.$.connected': false,
+          updatedAt: new Date().toISOString()
+        }
+      }
+    );
+  }
+
+  async getUsers(roomId) {
+    const roomDoc = await this.db.collection('rooms').findOne({ id: roomId.toUpperCase() });
+    return roomDoc?.users || [];
+  }
+
+  async updateUser(roomId, userId, updates) {
+    const updateFields = {};
+    for (const [key, value] of Object.entries(updates)) {
+      updateFields[`users.$.${key}`] = value;
     }
-    return null;
+
+    const result = await this.db.collection('rooms').findOneAndUpdate(
+      { id: roomId.toUpperCase(), 'users.id': userId },
+      { 
+        $set: { 
+          ...updateFields,
+          updatedAt: new Date().toISOString()
+        }
+      },
+      { returnDocument: 'after' }
+    );
+
+    if (!result) return null;
+    return result.users.find(u => u.id === userId);
   }
 
-  disconnectUser(roomId, userId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return;
-
-    const user = roomData.users.get(userId);
-    if (user) {
-      user.connected = false;
+  async updateRoomSettings(roomId, settings) {
+    const updateFields = {};
+    for (const [key, value] of Object.entries(settings)) {
+      updateFields[`settings.${key}`] = value;
     }
-  }
 
-  getUsers(roomId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return [];
-    return Array.from(roomData.users.values());
-  }
+    const result = await this.db.collection('rooms').findOneAndUpdate(
+      { id: roomId.toUpperCase() },
+      { 
+        $set: { 
+          ...updateFields,
+          updatedAt: new Date().toISOString()
+        }
+      },
+      { returnDocument: 'after' }
+    );
 
-  updateUser(roomId, userId, updates) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return null;
-
-    const user = roomData.users.get(userId);
-    if (user) {
-      Object.assign(user, updates);
-      return user;
-    }
-    return null;
-  }
-
-  updateRoomSettings(roomId, settings) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return null;
-
-    Object.assign(roomData.room.settings, settings);
-    roomData.room.updatedAt = new Date().toISOString();
-    return roomData.room;
+    return result;
   }
 
   // Story operations
-  addStory(roomId, story) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return null;
-
+  async addStory(roomId, story) {
     const newStory = {
       id: uuidv4(),
-      roomId,
+      roomId: roomId.toUpperCase(),
       title: story.title,
       description: story.description || '',
       link: story.link || '',
@@ -135,38 +213,48 @@ class Store {
       createdAt: new Date().toISOString()
     };
 
-    roomData.room.stories.push(newStory);
-    roomData.votes.set(newStory.id, new Map());
+    await this.db.collection('rooms').updateOne(
+      { id: roomId.toUpperCase() },
+      { 
+        $push: { stories: newStory },
+        $set: { 
+          [`votes.${newStory.id}`]: {},
+          updatedAt: new Date().toISOString()
+        }
+      }
+    );
+
     return newStory;
   }
 
-  getStories(roomId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return [];
-    return roomData.room.stories;
+  async getStories(roomId) {
+    const roomDoc = await this.db.collection('rooms').findOne({ id: roomId.toUpperCase() });
+    return roomDoc?.stories || [];
   }
 
-  setCurrentStory(roomId, storyId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return null;
+  async setCurrentStory(roomId, storyId) {
+    const result = await this.db.collection('rooms').findOneAndUpdate(
+      { id: roomId.toUpperCase() },
+      { 
+        $set: { 
+          currentStoryId: storyId,
+          'stories.$[story].status': 'estimating',
+          updatedAt: new Date().toISOString()
+        }
+      },
+      { 
+        arrayFilters: [{ 'story.id': storyId }],
+        returnDocument: 'after'
+      }
+    );
 
-    roomData.room.currentStoryId = storyId;
-    const story = roomData.room.stories.find(s => s.id === storyId);
-    if (story) {
-      story.status = 'estimating';
-    }
-    return story;
+    if (!result) return null;
+    return result.stories.find(s => s.id === storyId);
   }
 
   // Voting operations
-  startRound(roomId, storyId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return null;
-
-    // Clear previous votes for this story
-    roomData.votes.set(storyId, new Map());
-    
-    roomData.room.currentRound = {
+  async startRound(roomId, storyId) {
+    const currentRound = {
       storyId,
       startedAt: new Date().toISOString(),
       timerStartedAt: null,
@@ -175,105 +263,143 @@ class Store {
       locked: false
     };
 
-    return roomData.room.currentRound;
+    await this.db.collection('rooms').updateOne(
+      { id: roomId.toUpperCase() },
+      { 
+        $set: { 
+          currentRound,
+          [`votes.${storyId}`]: {},
+          updatedAt: new Date().toISOString()
+        }
+      }
+    );
+
+    return currentRound;
   }
 
-  startTimer(roomId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData || !roomData.room.currentRound) return null;
+  async startTimer(roomId) {
+    const roomDoc = await this.db.collection('rooms').findOne({ id: roomId.toUpperCase() });
+    if (!roomDoc || !roomDoc.currentRound) return null;
 
     const now = new Date();
-    const endsAt = new Date(now.getTime() + roomData.room.settings.countdownSeconds * 1000);
-    
-    roomData.room.currentRound.timerStartedAt = now.toISOString();
-    roomData.room.currentRound.timerEndsAt = endsAt.toISOString();
+    const endsAt = new Date(now.getTime() + roomDoc.settings.countdownSeconds * 1000);
+
+    await this.db.collection('rooms').updateOne(
+      { id: roomId.toUpperCase() },
+      { 
+        $set: { 
+          'currentRound.timerStartedAt': now.toISOString(),
+          'currentRound.timerEndsAt': endsAt.toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      }
+    );
 
     return {
-      timerStartedAt: roomData.room.currentRound.timerStartedAt,
-      timerEndsAt: roomData.room.currentRound.timerEndsAt,
-      countdownSeconds: roomData.room.settings.countdownSeconds
+      timerStartedAt: now.toISOString(),
+      timerEndsAt: endsAt.toISOString(),
+      countdownSeconds: roomDoc.settings.countdownSeconds
     };
   }
 
-  stopTimer(roomId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData || !roomData.room.currentRound) return null;
-
-    roomData.room.currentRound.timerStartedAt = null;
-    roomData.room.currentRound.timerEndsAt = null;
+  async stopTimer(roomId) {
+    await this.db.collection('rooms').updateOne(
+      { id: roomId.toUpperCase() },
+      { 
+        $set: { 
+          'currentRound.timerStartedAt': null,
+          'currentRound.timerEndsAt': null,
+          updatedAt: new Date().toISOString()
+        }
+      }
+    );
     return true;
   }
 
-  lockRound(roomId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData || !roomData.room.currentRound) return null;
-
-    roomData.room.currentRound.locked = true;
+  async lockRound(roomId) {
+    await this.db.collection('rooms').updateOne(
+      { id: roomId.toUpperCase() },
+      { 
+        $set: { 
+          'currentRound.locked': true,
+          updatedAt: new Date().toISOString()
+        }
+      }
+    );
     return true;
   }
 
-  castVote(roomId, storyId, oderId, value) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return null;
+  async castVote(roomId, storyId, userId, value) {
+    const roomDoc = await this.db.collection('rooms').findOne({ id: roomId.toUpperCase() });
+    if (!roomDoc) return null;
 
-    const round = roomData.room.currentRound;
+    const round = roomDoc.currentRound;
     if (!round || round.storyId !== storyId || round.locked || round.revealed) {
       return null;
     }
 
-    let storyVotes = roomData.votes.get(storyId);
-    if (!storyVotes) {
-      storyVotes = new Map();
-      roomData.votes.set(storyId, storyVotes);
-    }
+    await this.db.collection('rooms').updateOne(
+      { id: roomId.toUpperCase() },
+      { 
+        $set: { 
+          [`votes.${storyId}.${userId}`]: {
+            value,
+            timestamp: new Date().toISOString()
+          },
+          updatedAt: new Date().toISOString()
+        }
+      }
+    );
 
-    storyVotes.set(oderId, {
-      value,
-      timestamp: new Date().toISOString()
-    });
-
-    return { oderId, voted: true };
+    return { userId, voted: true };
   }
 
-  getVotes(roomId, storyId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return new Map();
-    return roomData.votes.get(storyId) || new Map();
+  async getVotes(roomId, storyId) {
+    const roomDoc = await this.db.collection('rooms').findOne({ id: roomId.toUpperCase() });
+    if (!roomDoc) return {};
+    return roomDoc.votes?.[storyId] || {};
   }
 
-  getVotingStatus(roomId, storyId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return {};
+  async getVotingStatus(roomId, storyId) {
+    const roomDoc = await this.db.collection('rooms').findOne({ id: roomId.toUpperCase() });
+    if (!roomDoc) return {};
 
-    const votes = roomData.votes.get(storyId) || new Map();
+    const votes = roomDoc.votes?.[storyId] || {};
     const status = {};
     
-    for (const [userId, user] of roomData.users) {
-      status[userId] = votes.has(userId);
+    for (const user of roomDoc.users) {
+      status[user.id] = !!votes[user.id];
     }
 
     return status;
   }
 
-  revealVotes(roomId, storyId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData || !roomData.room.currentRound) return null;
+  async revealVotes(roomId, storyId) {
+    const roomDoc = await this.db.collection('rooms').findOne({ id: roomId.toUpperCase() });
+    if (!roomDoc || !roomDoc.currentRound) return null;
 
-    roomData.room.currentRound.revealed = true;
-    roomData.room.currentRound.locked = true;
+    await this.db.collection('rooms').updateOne(
+      { id: roomId.toUpperCase() },
+      { 
+        $set: { 
+          'currentRound.revealed': true,
+          'currentRound.locked': true,
+          updatedAt: new Date().toISOString()
+        }
+      }
+    );
 
-    const votes = roomData.votes.get(storyId) || new Map();
+    const votes = roomDoc.votes?.[storyId] || {};
     const voteResults = {};
     const values = [];
 
-    for (const [userId, vote] of votes) {
+    for (const [userId, vote] of Object.entries(votes)) {
       voteResults[userId] = vote.value;
       if (typeof vote.value === 'number') {
         values.push(vote.value);
       }
     }
 
-    // Calculate summary
     const summary = this.calculateSummary(values);
 
     return { votes: voteResults, summary };
@@ -289,7 +415,6 @@ class Store {
     const max = sorted[sorted.length - 1];
     const average = values.reduce((a, b) => a + b, 0) / values.length;
 
-    // Calculate mode
     const frequency = {};
     let maxFreq = 0;
     let mode = null;
@@ -301,60 +426,79 @@ class Store {
       }
     }
 
-    // Check consensus (all same value or 80%+ agreement)
     const consensus = maxFreq >= values.length * 0.8;
 
     return { min, max, average: Math.round(average * 10) / 10, mode, consensus };
   }
 
-  setFinalEstimate(roomId, storyId, value) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return null;
+  async setFinalEstimate(roomId, storyId, value) {
+    const result = await this.db.collection('rooms').findOneAndUpdate(
+      { id: roomId.toUpperCase(), 'stories.id': storyId },
+      { 
+        $set: { 
+          'stories.$.finalEstimate': value,
+          'stories.$.status': 'estimated',
+          updatedAt: new Date().toISOString()
+        }
+      },
+      { returnDocument: 'after' }
+    );
 
-    const story = roomData.room.stories.find(s => s.id === storyId);
-    if (story) {
-      story.finalEstimate = value;
-      story.status = 'estimated';
-      return story;
-    }
-    return null;
+    if (!result) return null;
+    return result.stories.find(s => s.id === storyId);
   }
 
-  endSession(roomId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return null;
+  async endSession(roomId) {
+    const result = await this.db.collection('rooms').findOneAndUpdate(
+      { id: roomId.toUpperCase() },
+      { 
+        $set: { 
+          status: 'ended',
+          updatedAt: new Date().toISOString()
+        }
+      },
+      { returnDocument: 'after' }
+    );
 
-    roomData.room.status = 'ended';
-    return roomData.room;
+    return result;
   }
 
-  getRoomState(roomId) {
-    const roomData = this.rooms.get(roomId);
-    if (!roomData) return null;
+  async getRoomState(roomId) {
+    const roomDoc = await this.db.collection('rooms').findOne({ id: roomId.toUpperCase() });
+    if (!roomDoc) return null;
 
-    const currentStoryId = roomData.room.currentStoryId;
-    const votingStatus = currentStoryId ? this.getVotingStatus(roomId, currentStoryId) : {};
+    const currentStoryId = roomDoc.currentStoryId;
+    const votingStatus = currentStoryId ? await this.getVotingStatus(roomId, currentStoryId) : {};
 
     return {
-      room: roomData.room,
-      users: Array.from(roomData.users.values()),
+      room: {
+        id: roomDoc.id,
+        name: roomDoc.name,
+        hostId: roomDoc.hostId,
+        settings: roomDoc.settings,
+        stories: roomDoc.stories,
+        currentStoryId: roomDoc.currentStoryId,
+        currentRound: roomDoc.currentRound,
+        status: roomDoc.status
+      },
+      users: roomDoc.users,
       votingStatus,
-      currentRound: roomData.room.currentRound
+      currentRound: roomDoc.currentRound
     };
   }
 
-  // Cleanup old rooms (call periodically)
-  cleanup(maxAgeHours = 24) {
-    const now = new Date();
-    for (const [roomId, roomData] of this.rooms) {
-      const updatedAt = new Date(roomData.room.updatedAt);
-      const ageHours = (now - updatedAt) / (1000 * 60 * 60);
-      if (ageHours > maxAgeHours) {
-        this.rooms.delete(roomId);
-      }
+  // Cleanup old rooms
+  async cleanup(maxAgeHours = 24) {
+    const cutoff = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
+    const result = await this.db.collection('rooms').deleteMany({
+      updatedAt: { $lt: cutoff.toISOString() }
+    });
+    if (result.deletedCount > 0) {
+      console.log(`Cleaned up ${result.deletedCount} old rooms`);
     }
   }
 
+  // Socket mapping (kept in memory - only for current connections)
   mapSocketToUser(socketId, roomId, userId) {
     this.userSockets.set(socketId, { roomId, userId });
   }
